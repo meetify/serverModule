@@ -5,4 +5,6 @@ package serverModule
  */
 interface ConnectListener {
     fun onDone()
+
+    fun onError()
 }

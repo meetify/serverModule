@@ -2,6 +2,7 @@ package serverModule
 
 //import android.util.Log
 //import server.serverModule.Response
+import org.jetbrains.annotations.Nullable
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.math.BigInteger
@@ -11,54 +12,86 @@ import java.security.MessageDigest
 
 /**
  * Created by kr3v on 03.09.2016.
+ * TODO:
  */
-object ServerConnect {
+class ServerConnect {
 
     var connectListener = object : ConnectListener {
+        override fun onError() {
+
+        }
+
         override fun onDone() {
-//            return serverModule.Response.ERROR
-            throw UnsupportedOperationException("not implemented") //To change body of created functions use File | Settings | File Templates.
+
         }
     }
 
-    val sha512 = {
+    fun getSHA512(): MessageDigest {
         val temp = MessageDigest.getInstance("SHA-512")
         temp.reset()
-        temp
-    } as MessageDigest
+        return temp
+    }
 
     fun login(username: String, password: String) {
-        val socket = Socket("192.168.0.101", 8080)
-        socket.use {
-            val inputStream = DataInputStream(socket.inputStream)
-            val outputStream = DataOutputStream(socket.outputStream)
-            outputStream.writeUTF("login")
-            outputStream.writeUTF(username)
-            val salt = inputStream.readUTF()
-            outputStream.writeUTF(saltedHash(password, salt))
-//            Log.d(Log.DEBUG.toString(), inputStream.readUTF())
-        }
-        connectListener.onDone()
+        Thread(Runnable {
+            val socket = Socket("192.168.0.101", 8080)
+            var response = ""
+            socket.use {
+                val inputStream = DataInputStream(socket.inputStream)
+                val outputStream = DataOutputStream(socket.outputStream)
+                outputStream.writeUTF("login")
+                outputStream.writeUTF(username)
+                val salt = inputStream.readUTF()
+                outputStream.writeUTF(saltedHash(password, salt))
+                response = inputStream.readUTF()
+            }
+            if (response.contains("OK", true)) {
+                connectListener.onDone()
+            } else {
+                connectListener.onError()
+            }
+        }).start()
+
     }
 
     fun register(username: String, password: String) {
-        val socket = Socket("192.168.0.101", 8080)
-        socket.use {
-            val inputStream = DataInputStream(socket.inputStream)
-            val outputStream = DataOutputStream(socket.outputStream)
+        Thread(Runnable {
+            val socket = Socket("192.168.0.101", 8080)
+            var response = ""
+            socket.use {
+                val inputStream = DataInputStream(socket.inputStream)
+                val outputStream = DataOutputStream(socket.outputStream)
 
-            outputStream.writeUTF("register")
-            val salt = inputStream.readUTF()
-            val toSend = "$username#${saltedHash(password, salt)}"
-//            Log.d(Log.DEBUG.toString(), toSend)
-            outputStream.writeUTF(toSend)
-//            Log.d(Log.DEBUG.toString(), inputStream.readUTF())
-        }
+                outputStream.writeUTF("register")
+                val salt = inputStream.readUTF()
+                val toSend = "$username#${saltedHash(password, salt)}"
+                outputStream.writeUTF(toSend)
+                response = inputStream.readUTF()
+            }
+            if (response.contains("OK", true)) {
+                connectListener.onDone()
+            } else {
+                connectListener.onError()
+            }
+        }).start()
     }
 
-    fun bin2hex(data: ByteArray) = String.format("%0" + data.size * 2 + "X", BigInteger(1, data))
+    fun vkLogin(response: String) {
+        Thread(Runnable {
+            val socket = Socket("192.168.0.101", 8080)
+            socket.use {
+                val inputStream = DataInputStream(socket.inputStream)
+                val outputStream = DataOutputStream(socket.outputStream)
+            }
+            connectListener.onDone()
+        }).start()
+    }
 
-    fun hash(string: String) = bin2hex(sha512.digest(string.toByteArray(Charset.forName("US-ASCII"))))
+    private val sha512 = getSHA512()
 
-    fun saltedHash(string: String, salt: String) = hash(salt + hash(salt))
+    private fun bin2hex(data: ByteArray) = String.format("%0" + data.size * 2 + "X", BigInteger(1, data))
+
+    private fun hash(string: String) = bin2hex(sha512.digest(string.toByteArray(Charset.forName("US-ASCII"))))
+
+    private fun saltedHash(string: String, salt: String) = hash(salt + hash(salt))
 }

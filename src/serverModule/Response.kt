@@ -7,5 +7,6 @@ package serverModule
 
 enum class Response {
     OK,
+    NOSUCHMETHOD,
     ERROR
 }

@@ -1,10 +1,9 @@
+@file:Suppress("unused")
+
 package serverModule
 
-//import android.util.Log
-//import server.serverModule.Response
-import org.jetbrains.annotations.Nullable
-import java.io.DataInputStream
-import java.io.DataOutputStream
+import serverModule.listeners.ConnectListener
+import serverModule.listeners.LoginListener
 import java.math.BigInteger
 import java.net.Socket
 import java.nio.charset.Charset
@@ -12,9 +11,13 @@ import java.security.MessageDigest
 
 /**
  * Created by kr3v on 03.09.2016.
- * TODO:
+ * This object is used to allow client doing it's tasks without interfacing with server
  */
 class ServerConnect {
+
+    constructor() {
+        Thread(socket).start()
+    }
 
     var connectListener = object : ConnectListener {
         override fun onError() {
@@ -25,66 +28,68 @@ class ServerConnect {
 
         }
     }
+    var loginListener = object : LoginListener {
+        override fun onLogin() {
 
-    fun getSHA512(): MessageDigest {
-        val temp = MessageDigest.getInstance("SHA-512")
-        temp.reset()
-        return temp
+        }
+
+        override fun onLoginError() {
+
+        }
+    }
+
+    companion object {
+        fun init() : CustomSocket {
+            val ret = CustomSocket(Socket(ipAddress, port))
+            ret.socket.close()
+            return ret
+        }
+
+        val ipAddress = "192.168.0.101"
+        val port = 8080
+        val socket = init()
     }
 
     fun login(username: String, password: String) {
         Thread(Runnable {
-            val socket = Socket("192.168.0.101", 8080)
-            var response = ""
-            socket.use {
-                val inputStream = DataInputStream(socket.inputStream)
-                val outputStream = DataOutputStream(socket.outputStream)
-                outputStream.writeUTF("login")
-                outputStream.writeUTF(username)
-                val salt = inputStream.readUTF()
-                outputStream.writeUTF(saltedHash(password, salt))
-                response = inputStream.readUTF()
-            }
-            if (response.contains("OK", true)) {
-                connectListener.onDone()
-            } else {
-                connectListener.onError()
-            }
+            socket.writeUTF("login")
+            socket.writeUTF(username)
+            val salt = socket.readUTF()
+            socket.writeUTF(saltedHash(password, salt))
+            connectListener.fromResponse(socket.readUTF())
         }).start()
 
     }
 
     fun register(username: String, password: String) {
         Thread(Runnable {
-            val socket = Socket("192.168.0.101", 8080)
-            var response = ""
-            socket.use {
-                val inputStream = DataInputStream(socket.inputStream)
-                val outputStream = DataOutputStream(socket.outputStream)
-
-                outputStream.writeUTF("register")
-                val salt = inputStream.readUTF()
-                val toSend = "$username#${saltedHash(password, salt)}"
-                outputStream.writeUTF(toSend)
-                response = inputStream.readUTF()
-            }
-            if (response.contains("OK", true)) {
-                connectListener.onDone()
-            } else {
-                connectListener.onError()
-            }
+            socket.writeUTF("register")
+            val salt = socket.readUTF()
+            val toSend = "$username#${saltedHash(password, salt)}"
+            socket.writeUTF(toSend)
+            connectListener.fromResponse(socket.readUTF())
         }).start()
     }
 
-    fun vkLogin(response: String) {
+    fun vkLogin() {
         Thread(Runnable {
-            val socket = Socket("192.168.0.101", 8080)
-            socket.use {
-                val inputStream = DataInputStream(socket.inputStream)
-                val outputStream = DataOutputStream(socket.outputStream)
+            socket.writeUTF("vklogin")
+            if (!isOK(socket.readUTF())) {
+                loginListener.onLoginError()
+                return@Runnable
             }
-            connectListener.onDone()
+            connectListener.fromResponse(socket.readUTF())
         }).start()
+    }
+
+    private fun isOK(string: String): Boolean {
+        return Response.valueOf(string) == Response.OK
+    }
+
+    private fun getSHA512(): MessageDigest {
+        val temp = MessageDigest.getInstance("SHA-512")
+        temp.reset()
+        return temp
     }
 
     private val sha512 = getSHA512()
@@ -93,5 +98,5 @@ class ServerConnect {
 
     private fun hash(string: String) = bin2hex(sha512.digest(string.toByteArray(Charset.forName("US-ASCII"))))
 
-    private fun saltedHash(string: String, salt: String) = hash(salt + hash(salt))
+    private fun saltedHash(pass: String, salt: String) = hash(salt + hash(pass))
 }

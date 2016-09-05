@@ -7,7 +7,7 @@ package serverModule.data
 data class User(var userId: Int,
                 var userVKId: Int?,
                 var userFriendsList: Array<Int>?,
-                var place: Place = Place(0.0, 0.0)) {
+                var place: Location = Location(0.0, 0.0)) {
     override fun equals(other: Any?) = other is User && userId == other.userId
     override fun hashCode(): Int{
         return userId

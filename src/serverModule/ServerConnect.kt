@@ -38,17 +38,9 @@ class ServerConnect {
         }
     }
 
-    companion object {
-        fun init() : CustomSocket {
-            val ret = CustomSocket(Socket(ipAddress, port))
-            ret.socket.close()
-            return ret
-        }
-
-        val ipAddress = "192.168.0.101"
-        val port = 8080
-        val socket = init()
-    }
+    val ipAddress = "192.168.0.101"
+    val port = 8080
+    val socket = CustomSocket(Socket(ipAddress, port))
 
     fun login(username: String, password: String) {
         Thread(Runnable {

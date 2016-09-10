@@ -1,9 +1,10 @@
 package serverModule.data
 
+import java.util.*
+
 /**
  * Created by kr3v on 05.09.2016.
  */
-class Place(val name:String,
-            val type:String,
-            val location: Location) {
-}
+data class Place(var name: HashMap<String, String>,
+                 var type: String,
+                 var location: Location)
